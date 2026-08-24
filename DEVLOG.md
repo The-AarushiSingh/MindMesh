@@ -62,3 +62,8 @@ And when TypeScript complains about something we intentionally want to bypass, w
 // @ts-ignore
 
 This tells TypeScript to ignore the error on the next line.
+
+
+create the skeleton\
+create the schema
+fill in the skeletons
