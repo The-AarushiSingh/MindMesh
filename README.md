@@ -262,5 +262,237 @@ When relevant context cannot be found, the system can return an insufficient-con
 MindMesh/
 ├── backend/
 │   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── middleware/
+│   │   ├── models/
+│   │   ├── routes/
+│   │   └── services/
+│   ├── package.json
+│   └── .env.example
 │
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   └── package.json
+│
+├── ARCHITECTURE.md
+├── README.md
+└── .gitignore
 ```
+
+## Local Development
+
+### Prerequisites
+
+* Node.js 20+
+* MongoDB
+* OpenAI API key
+
+### 1. Clone
+
+```bash
+git clone https://github.com/The-AarushiSingh/MindMesh.git
+cd MindMesh
+```
+
+### 2. Start MongoDB
+
+Using Docker:
+
+```bash
+docker run -d \
+  --name mindmesh-mongo \
+  -p 27017:27017 \
+  -v mindmesh-mongo-data:/data/db \
+  mongo
+```
+
+### 3. Configure the backend
+
+Create:
+
+```text
+backend/.env
+```
+
+Example:
+
+```env
+PORT=5000
+
+MONGO_URI=mongodb://localhost:27017/mindmesh
+
+JWT_SECRET=your-long-random-secret
+JWT_EXPIRES_IN=7d
+
+AI_API_KEY=your-openai-api-key
+AI_BASE_URL=https://api.openai.com/v1
+AI_MODEL=gpt-4o-mini
+
+EMBEDDING_API_KEY=
+EMBEDDING_BASE_URL=https://api.openai.com/v1
+EMBEDDING_MODEL=text-embedding-3-small
+
+RETRIEVAL_TOP_K=5
+RETRIEVAL_MIN_SIMILARITY=0.32
+
+EMAIL_DELIVERY=development
+```
+
+`EMBEDDING_API_KEY` can be left empty when using the same OpenAI key configured through `AI_API_KEY`.
+
+Never commit `.env` or API keys.
+
+### 4. Start the backend
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+The API runs on:
+
+```text
+http://localhost:5000
+```
+
+Health check:
+
+```text
+GET /api/health
+```
+
+### 5. Start the frontend
+
+In another terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The Vite development server will provide the frontend URL.
+
+If required, configure:
+
+```env
+VITE_API_BASE=http://localhost:5000/api
+```
+
+## Testing
+
+Backend tests:
+
+```bash
+cd backend
+npm test
+```
+
+Frontend tests:
+
+```bash
+cd frontend
+npm test
+```
+
+The project also contains integration and live-flow checks for authentication, MongoDB, resource processing, retrieval, and the AI pipeline.
+
+## Current Status
+
+MindMesh currently has a working local product loop covering:
+
+* JWT authentication
+* Email verification flow
+* Resource ingestion
+* Content extraction and cleaning
+* LLM-based resource analysis
+* Chunking
+* Vector embeddings
+* Semantic retrieval
+* Grounded AI questions
+* Knowledge graph generation
+* Knowledge-gap detection
+* User-scoped data access
+* Development email verification
+* AI/provider fallbacks
+* Automated tests and integration checks
+
+### Production Readiness
+
+The application is currently **pre-production**.
+
+Before a public deployment, the remaining work includes:
+
+* Hosted MongoDB
+* Public HTTPS API
+* Static frontend deployment
+* Production environment variables and secrets
+* Restricted CORS
+* Authentication/resource rate limiting
+* AI usage limits
+* Production email provider with a verified sender domain
+
+The current background job system intentionally runs inside a single Node.js process. MindMesh is designed around a single API instance for its current scale rather than introducing unnecessary distributed infrastructure.
+
+## Design Decisions
+
+### Why MongoDB?
+
+The application stores several related but flexible entities — resources, chunks, concepts, topics, knowledge gaps, and relationships. MongoDB provides a straightforward document model while keeping the initial architecture simple.
+
+### Why embeddings?
+
+Keyword search breaks down when the query and the stored knowledge use different wording.
+
+Embeddings allow MindMesh to retrieve conceptually related content rather than requiring exact keyword matches.
+
+### Why a single Node process?
+
+The current goal is a reliable, understandable system rather than distributed infrastructure for its own sake.
+
+The in-process queue is sufficient for the current workload. Resources left in `saved` or `processing` state are recovered when the API starts.
+
+### Why RAG?
+
+Ask My Brain should answer from **the user's knowledge**, not from the model's general knowledge alone.
+
+Retrieval provides the relevant evidence before generation.
+
+## Roadmap
+
+* [x] Authentication
+* [x] Email verification
+* [x] Resource ingestion
+* [x] AI resource analysis
+* [x] Chunking
+* [x] Embeddings
+* [x] Semantic retrieval
+* [x] Grounded Q&A
+* [x] Knowledge graph
+* [x] Knowledge-gap detection
+* [x] Automated testing
+* [ ] Production deployment
+* [ ] Production email delivery
+* [ ] Rate limiting
+* [ ] AI usage quotas
+* [ ] Password reset
+* [ ] Improved knowledge-gap detection
+* [ ] More robust YouTube/content extraction
+* [ ] Scalable vector indexing when the archive requires it
+
+---
+
+## Why I Built This
+
+MindMesh started from a simple problem:
+
+> I save far more information than I actually revisit.
+
+Bookmarks, posts, documentation, articles, and videos disappear into disconnected folders and browser tabs.
+
+MindMesh is an attempt to build something different — a system that doesn't just **store what I saved**, but tries to understand **what I learned**, how different pieces of knowledge connect, and what I might be missing.
+
+It is also a hands-on exploration of building AI-powered backend systems from the ground up: ingestion, processing pipelines, embeddings, retrieval, RAG, authentication, background jobs, databases, and production deployment.
