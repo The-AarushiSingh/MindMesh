@@ -1,115 +1,266 @@
 # MindMesh
 
-MindMesh turns things you save — articles, repositories, videos, notes — into a personal knowledge archive. It extracts concepts, connects them to what you already saved, lets you ask questions against that archive, and points out neighboring ideas you have not covered.
+> An AI-powered personal knowledge system that turns saved web content into an interconnected, searchable knowledge base.
 
-The core loop is save, understand, connect, retrieve, ask, and discover.
+MindMesh is a personal "second brain" designed around a simple idea:
 
-## Stack
+**Saving information is easy. Understanding and connecting it is the hard part.**
 
-- Frontend: React + Vite
-- Backend: Node.js + Express
-- Database: MongoDB + Mongoose
-- Background work: an in-process queue. Job state lives on the resource document, so a restart can resume saved or processing items.
-- AI: optional OpenAI-compatible chat and embedding APIs. Without keys, analysis and retrieval use explicit local fallbacks.
+Instead of treating saved links as a flat archive, MindMesh processes them into structured knowledge — extracting summaries, topics, concepts, embeddings, and relationships that can later be searched and queried.
 
-This is a modular monolith. There is no separate worker service, vector database, or graph database.
+## What MindMesh Does
 
-## Local setup
-
-1. Copy `backend/.env.example` to `backend/.env`.
-2. Start MongoDB at `mongodb://localhost:27017/mindmesh`.
-3. Install and start the API:
-
-```bash
-cd backend
-npm install
-npm run dev
+```text
+Save → Understand → Connect → Retrieve → Ask → Discover
 ```
 
-4. Install and start the frontend:
+### Save
 
-```bash
-cd frontend
-npm install
-npm run dev
+Save a URL or resource to your personal knowledge archive.
+
+MindMesh currently supports resources such as:
+
+* Articles and web pages
+* GitHub repositories
+* Documentation
+* X posts
+* LinkedIn posts
+* YouTube resources
+* Notes
+* Other URLs
+
+### Understand
+
+When a resource is processed, MindMesh:
+
+1. Fetches and extracts its content
+2. Cleans the extracted text
+3. Analyzes the content with an LLM
+4. Extracts topics and concepts
+5. Generates a summary
+6. Splits the content into searchable chunks
+7. Generates vector embeddings
+
+### Connect
+
+Extracted concepts and topics are connected to existing knowledge, forming a lightweight knowledge graph.
+
+This allows the system to represent relationships between things you've learned rather than storing every resource independently.
+
+### Retrieve
+
+MindMesh supports semantic retrieval over the processed archive.
+
+Instead of relying only on exact keyword matches, queries can retrieve conceptually related passages using embeddings and cosine similarity.
+
+### Ask My Brain
+
+Ask questions against your own saved knowledge.
+
+The system retrieves relevant passages from the archive and uses them as context for an LLM-generated response.
+
+If the archive does not contain enough relevant information, MindMesh is designed to say so rather than inventing an answer.
+
+## Architecture
+
+```text
+                         ┌──────────────────┐
+                         │     Frontend     │
+                         │   React + Vite   │
+                         └────────┬─────────┘
+                                  │
+                              REST API
+                                  │
+                         ┌────────▼─────────┐
+                         │     Express      │
+                         │      API        │
+                         └───────┬──────────┘
+                                 │
+              ┌──────────────────┼──────────────────┐
+              │                  │                  │
+              ▼                  ▼                  ▼
+        ┌───────────┐      ┌────────────┐     ┌─────────────┐
+        │  MongoDB  │      │ OpenAI API │     │ Job Service │
+        │           │      │            │     │             │
+        └───────────┘      └────────────┘     └─────────────┘
+              │                  │
+              │            ┌─────┴─────┐
+              │            │           │
+              │          LLM       Embeddings
+              │            │           │
+              └────────────┴─────┬─────┘
+                                 │
+                         Knowledge Pipeline
+                                 │
+                    ┌────────────▼────────────┐
+                    │ Resources → Chunks      │
+                    │ Topics → Concepts       │
+                    │ Embeddings → Retrieval  │
+                    │ Relationships → Graph   │
+                    └─────────────────────────┘
 ```
 
-The UI expects the API at `http://localhost:5000/api`. Override it with `VITE_API_BASE` if needed.
+## AI / Knowledge Pipeline
 
-## Environment variables
+A saved resource moves through the following pipeline:
 
-Set these in `backend/.env`.
-
-| Variable | Purpose |
-| --- | --- |
-| `PORT` | API port. Default `5000`. |
-| `MONGO_URI` | MongoDB connection string. |
-| `JWT_SECRET` | Signing secret for auth tokens. |
-| `JWT_EXPIRES_IN` | Token lifetime. Default `7d`. |
-| `AI_API_KEY` | Optional key for structured analysis and Ask My Brain. |
-| `AI_BASE_URL` | Chat completions base URL. Default `https://api.openai.com/v1`. |
-| `AI_MODEL` | Chat model. Default `gpt-4o-mini`. |
-| `EMBEDDING_API_KEY` | Optional embeddings key. If empty, `AI_API_KEY` is used for embeddings. |
-| `EMBEDDING_BASE_URL` | Embeddings base URL. |
-| `EMBEDDING_MODEL` | Embedding model. Default `text-embedding-3-small`. |
-| `RETRIEVAL_TOP_K` | Maximum retrieved passages. Default `5`. |
-| `RETRIEVAL_MIN_SIMILARITY` | Minimum cosine similarity for semantic hits. Default `0.32`. |
-| `EMAIL_DELIVERY` | `development` returns the verification code in the API response and does not send mail. `provider` sends through Resend. |
-| `RESEND_API_KEY` | Resend API key. Required for real email. |
-| `EMAIL_FROM` | From address Resend is allowed to use, for example `MindMesh <verify@yourdomain.com>`. |
-
-If `EMAIL_DELIVERY` is unset and both Resend variables are set, mail is sent through Resend. If they are unset outside production, delivery stays in development mode. In production with no provider configured, registration still creates the account and reports that the email could not be sent. No code is included in that response.
-
-Local accounts created before verification existed do not have `emailVerified: false`, so they can still log in. Every new registration must verify.
-
-`GET /api/health` reports which mode is active: `provider` or `heuristic` for analysis, and `provider` or `lexical-fallback` for retrieval. It does not report secret values.
-
-## What is real
-
-- Register, login, and JWT protection. Passwords are hashed with bcrypt.
-- New accounts stay unverified until a 10-minute code is confirmed. Login does not issue a JWT before that. Codes are stored as bcrypt hashes.
-- Resources, concepts, topics, search, Ask My Brain, and gaps are scoped to the signed-in user.
-- Saving a URL or note returns immediately. Processing runs on the in-process queue.
-- Processing states are `saved`, `processing`, `processed`, and `failed`. Failures keep an error message and can be retried.
-- Successful processing stores a summary, topics, concepts, and deterministic text chunks. When an embedding key is configured, each chunk gets a vector.
-- Concept and topic names are normalized per user, so repeated mentions converge on one entity.
-- Observed graph edges mean two concepts appeared in the same saved resource.
-- Gap recommendations use a documented coverage score plus a curated map of neighboring concepts. The formula is in `ARCHITECTURE.md`.
-- Ask My Brain retrieves only that user's chunks. If an AI key is set, the model must answer from those passages, and returned sources are checked against the retrieved ids. Without a key, the answer quotes saved summaries and is labeled `heuristic`.
-- Search with stored chunk embeddings is cosine similarity and is labeled semantic similarity. Search without embeddings is keyword overlap. It is not described as semantic search.
-
-## What uses fallback logic
-
-- No `AI_API_KEY`: summaries, topics, and concepts come from sentence extraction and a fixed concept vocabulary. `analysisSource` is `heuristic`.
-- The provider errors, times out, or returns invalid JSON: the same heuristic result is stored, and the failure is logged. The record is not labeled as model output.
-- No usable embedding: retrieval uses keyword overlap and `retrievalMode` is `lexical-fallback`.
-- YouTube URLs store the public title and author only. Transcripts are not fetched. `contentSource` is `limited`.
-- GitHub URLs use the public repository description and README. Other sites use readable HTML. Pages that require login or render only in the browser fail with a stored error.
-- X and LinkedIn posts are saved as URLs, but those sites often block fetching.
-
-## What is not built
-
-- Review reminders and spaced repetition.
-- A separate vector database. Similarity is computed over chunk embeddings stored in MongoDB.
-- A distributed queue, vector database, graph database, or microservice split.
-- Notifications.
-
-## Scripts
-
-```bash
-cd backend && npm test
-cd frontend && npm test
-cd backend && node scripts/live-loop.js
+```text
+URL
+ │
+ ▼
+Content Extraction
+ │
+ ▼
+Cleaning
+ │
+ ▼
+LLM Analysis
+ │
+ ├── Summary
+ ├── Topics
+ └── Concepts
+ │
+ ▼
+Chunking
+ │
+ ▼
+Embeddings
+ │
+ ▼
+MongoDB
+ │
+ ├── Semantic Search
+ ├── Ask My Brain
+ ├── Knowledge Graph
+ └── Knowledge Gaps
 ```
 
-`scripts/live-loop.js` registers a throwaway user against the running API and local MongoDB, saves notes plus three public URLs, and prints processing, retrieval, and graph counts. It does not drop the database.
+The system also maintains fallback paths for development and provider failures, including lexical retrieval when vector embeddings are unavailable.
 
-Backend tests include unit coverage for analysis validation, retrieval fallback, and gap scoring, plus an integration test against a local `mindmesh_test` database. That integration test requires MongoDB on `127.0.0.1:27017`.
+## Tech Stack
 
-## Product flow
+### Frontend
 
-1. Save a URL or a note.
-2. The queue fetches what it can, analyzes it, and embeds it when a provider is configured.
-3. Topics and concepts are upserted for that user, and gaps are recalculated.
-4. Search and Ask My Brain read only processed resources from that user.
-5. The gaps view explains which neighboring concept is missing and shows a recommended path.
+* React
+* Vite
+* JavaScript
+* CSS
+
+### Backend
+
+* Node.js
+* Express.js
+* REST APIs
+* JWT authentication
+* bcrypt
+* Nodemon
+
+### Database
+
+* MongoDB
+* Mongoose
+
+### AI
+
+* OpenAI API
+* `gpt-4o-mini`
+* `text-embedding-3-small`
+* Vector embeddings
+* Cosine similarity
+* Retrieval-augmented generation (RAG)
+
+### Development
+
+* Git / GitHub
+* Docker
+* Postman
+* Vitest
+* Cursor
+
+## Authentication
+
+MindMesh uses JWT-based authentication with user-scoped data access.
+
+The email verification flow supports:
+
+```text
+Register
+   ↓
+Unverified account
+   ↓
+OTP
+   ↓
+Email verification
+   ↓
+JWT authentication
+   ↓
+Protected resources
+```
+
+OTP handling includes:
+
+* Expiration
+* Invalid-code detection
+* Replacement on resend
+* Previous-code invalidation
+* Verification before login
+* Development-mode delivery for local testing
+
+## Knowledge Graph
+
+MindMesh maintains relationships between topics and concepts extracted from the user's resources.
+
+The graph allows the application to move beyond:
+
+```text
+Resource A
+Resource B
+Resource C
+```
+
+toward:
+
+```text
+Resource A
+    │
+    ├── Concept X
+    │      │
+    │      └── Concept Y
+    │
+    └── Topic Z
+           │
+           └── Resource C
+```
+
+The frontend exposes these relationships through an interactive concept graph.
+
+## Ask My Brain
+
+Ask My Brain follows a retrieval-first approach:
+
+```text
+User Question
+      ↓
+Query Retrieval
+      ↓
+Relevant Chunks
+      ↓
+Context Assembly
+      ↓
+LLM
+      ↓
+Grounded Answer + Sources
+```
+
+The model is given retrieved archive passages rather than unrestricted access to the entire knowledge base.
+
+When relevant context cannot be found, the system can return an insufficient-context response instead of fabricating an answer.
+
+## Project Structure
+
+```text
+MindMesh/
+├── backend/
+│   ├── src/
+│
+```
