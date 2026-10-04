@@ -28,6 +28,13 @@ const protect = async (req, res, next) => {
       });
     }
 
+    if (user.emailVerified === false) {
+      return res.status(403).json({
+        message: "Email verification required",
+        code: "EMAIL_NOT_VERIFIED",
+      });
+    }
+
     req.user = user;
 
     next();

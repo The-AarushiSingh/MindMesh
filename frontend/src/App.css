@@ -356,6 +356,130 @@ textarea {
   padding: 8px 0;
 }
 
+.lede,
+.hint,
+.extract {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.lede {
+  max-width: 68ch;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.banner {
+  margin-top: 16px;
+}
+
+.notice {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.text-button,
+.as-button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.as-button {
+  width: 100%;
+}
+
+.row-actions,
+.path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.path-arrow {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.tag.covered {
+  background: rgba(36, 82, 58, 0.08);
+}
+
+.status-failed {
+  color: #7a3623;
+}
+
+.status-processed {
+  color: #24523a;
+}
+
+.concept-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.concept-card {
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.extract {
+  white-space: pre-wrap;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.compact-toggle {
+  margin: 8px 0 0;
+}
+
+.password-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.password-field input {
+  flex: 1;
+}
+
+.password-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 5.5rem;
+  justify-content: center;
+}
+
+.eye-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.auth-form h2 {
+  font-size: 1.6rem;
+}
+
+.auth-header .lede {
+  margin-bottom: 0;
+}
+
 @media (max-width: 920px) {
   .app-shell {
     flex-direction: column;

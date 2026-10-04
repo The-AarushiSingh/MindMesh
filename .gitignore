@@ -1,2 +1,6 @@
 # Dependencies
 node_modules/
+
+.env
+backend/.env
+frontend/dist/

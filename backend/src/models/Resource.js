@@ -17,9 +17,9 @@ const resourceSchema = new mongoose.Schema(
 
     url: {
       type: String,
-      required: true,
       trim: true,
       maxlength: 2048,
+      default: "",
     },
 
     type: {
@@ -58,12 +58,47 @@ const resourceSchema = new mongoose.Schema(
     concepts: [{ type: String, trim: true }],
     keyIdeas: [{ type: String, trim: true }],
     prerequisites: [{ type: String, trim: true }],
+    relationships: [{ type: String, trim: true }],
     difficulty: {
       type: String,
       enum: ["beginner", "intermediate", "advanced"],
       default: "beginner",
     },
-
+    embedding: {
+      type: [Number],
+      select: false,
+    },
+    embeddingSource: {
+      type: String,
+      enum: ["provider", "unavailable"],
+      default: "unavailable",
+    },
+    contentSource: {
+      type: String,
+      enum: ["fetched", "note", "limited"],
+      default: "fetched",
+    },
+    extractionNote: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: "",
+    },
+    analysisSource: {
+      type: String,
+      enum: ["provider", "heuristic", "unavailable"],
+      default: "unavailable",
+    },
+    providerModel: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    retrievalMode: {
+      type: String,
+      enum: ["embedding", "lexical-fallback"],
+      default: "lexical-fallback",
+    },
     status: {
       type: String,
       enum: ["saved", "processing", "processed", "failed"],
@@ -74,10 +109,29 @@ const resourceSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: 1000,
+      default: "",
     },
+
+    jobAttempts: {
+      type: Number,
+      default: 0,
+    },
+
+    processingStartedAt: Date,
+    processedAt: Date,
   },
   {
     timestamps: true,
+  }
+);
+
+resourceSchema.index({ user: 1, createdAt: -1 });
+resourceSchema.index({ user: 1, status: 1 });
+resourceSchema.index(
+  { user: 1, url: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { url: { $type: "string", $gt: "" } },
   }
 );
 
