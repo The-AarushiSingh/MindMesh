@@ -1,6 +1,5 @@
-const Resource = require("../models/Resource");
 const { buildAnswerFromContext } = require("../services/ai.service");
-const { searchResourcesByMeaning, embeddingConfigured } = require("../services/embedding.service");
+const { searchUserKnowledge } = require("../services/embedding.service");
 const logger = require("../utils/logger");
 
 const MIN_SIMILARITY = {
@@ -20,14 +19,14 @@ const askBrain = async (req, res) => {
       return res.status(400).json({ message: "Question is too long" });
     }
 
-    const selection = embeddingConfigured() ? "+embedding" : "-embedding";
-    const resources = await Resource.find({ user: req.user._id, status: "processed" })
-      .select(selection)
-      .lean();
-    const rankedResources = await searchResourcesByMeaning(req.user._id, question, resources, 5);
-    const mode = rankedResources[0]?.mode || (embeddingConfigured() ? "embedding" : "lexical-fallback");
-    const threshold = MIN_SIMILARITY[mode] || 0.12;
-    const relevant = rankedResources.filter((resource) => resource.similarity >= threshold);
+    const retrieval = await searchUserKnowledge(req.user._id, question, {
+      limit: 5,
+      perResource: 2,
+      minSimilarity: MIN_SIMILARITY.embedding,
+    });
+    const mode = retrieval.mode;
+    const threshold = mode === "embedding" ? MIN_SIMILARITY.embedding : MIN_SIMILARITY["lexical-fallback"];
+    const relevant = retrieval.hits.filter((resource) => resource.similarity >= threshold);
     const response = await buildAnswerFromContext(question, relevant);
 
     return res.status(200).json({

@@ -54,16 +54,20 @@ If the key is missing, the request fails, or the JSON is empty or invalid, the s
 
 `analysisSource` is `provider` only when the model response was accepted. Heuristic output is `heuristic`. Empty content is `unavailable`.
 
+## Chunks
+
+`chunkText` splits cleaned content into deterministic passages of about 900 characters with a short overlap, capped at 40 chunks. Each chunk belongs to one user and one resource and keeps its position.
+
 ## Embeddings and retrieval
 
-`generateEmbedding` calls the embeddings endpoint when `EMBEDDING_API_KEY` or `AI_API_KEY` is set. A failure leaves `embeddingSource` as `unavailable` and does not invent a vector.
+`generateEmbedding` calls the embeddings endpoint when `EMBEDDING_API_KEY` or `AI_API_KEY` is set. A failure leaves `embeddingSource` as `unavailable` and does not invent a vector. Vectors are stored on chunks, not only on the resource. The first successful vector is also kept on the resource for reference.
 
-Retrieval goes through `searchResourcesByMeaning`:
+`searchUserKnowledge` is what search and Ask My Brain call:
 
-- With a query vector and stored vectors of the same length, results are cosine similarity and labeled `embedding`.
-- Otherwise results are keyword overlap across title, topics, concepts, summary, and content, labeled `lexical-fallback`.
+- If the query embeds and the user has chunk vectors, hits are cosine similarity against that user's chunks only. Results are labeled `embedding`. One resource cannot fill the whole list. Hits below `RETRIEVAL_MIN_SIMILARITY` (default 0.32) are dropped.
+- If embeddings are missing or the provider fails, hits are keyword overlap on that user's chunks, labeled `lexical-fallback`.
 
-Queries always include the user id and, at the API layer, only `processed` resources. Results include the matched terms or a semantic-ranking note so the UI can say why a hit appeared. The lexical scorer is the seam a future vector index can replace without changing controllers.
+Queries always include the user id. A processed resource from another user cannot match. There is no separate vector database.
 
 ## Ask My Brain
 
@@ -83,7 +87,7 @@ After processing or deletion, MindMesh rebuilds the user's topics and concepts f
 - concepts mentioned in one resource link to each other (`co_occurs`)
 - resources link to the topics and concepts they mention
 
-The exploration API returns those concepts with their saved resources. The UI uses that list. It does not draw a decorative graph.
+The exploration API returns nodes and edges. The Knowledge page draws those nodes and edges in an SVG. Selecting a concept shows its related concepts and saved resources. The same response still includes the concept list under the graph.
 
 ## Gap detection
 

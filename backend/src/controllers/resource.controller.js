@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Resource = require("../models/Resource");
+const Chunk = require("../models/Chunk");
 const { inferResourceTypeFromUrl, assertFetchableUrl } = require("../services/content.service");
 const { enqueueResource } = require("../services/job.service");
 const { rebuildUserKnowledge } = require("../services/knowledge.service");
@@ -118,7 +119,24 @@ const getResourceById = async (req, res) => {
       return res.status(404).json({ message: "Resource not found" });
     }
 
-    return res.status(200).json({ resource: serializeResource(resource, { includeContent: true }) });
+    const chunks = await Chunk.find({ resource: resource._id, user: req.user._id })
+      .sort({ index: 1 })
+      .limit(12)
+      .select("index text embeddingSource embeddingModel dimensions")
+      .lean();
+
+    return res.status(200).json({
+      resource: {
+        ...serializeResource(resource, { includeContent: true }),
+        chunks: chunks.map((chunk) => ({
+          index: chunk.index,
+          excerpt: chunk.text.slice(0, 280),
+          embeddingSource: chunk.embeddingSource,
+          embeddingModel: chunk.embeddingModel || "",
+          dimensions: chunk.dimensions || 0,
+        })),
+      },
+    });
   } catch (error) {
     logger.error("resource.read_failed", { message: error.message });
     return res.status(500).json({ message: "Internal server error" });
@@ -167,6 +185,7 @@ const deleteResource = async (req, res) => {
       return res.status(404).json({ message: "Resource not found" });
     }
 
+    await Chunk.deleteMany({ resource: resource._id, user: req.user._id });
     await rebuildUserKnowledge(req.user._id);
 
     return res.status(200).json({ message: "Resource deleted successfully" });

@@ -73,12 +73,16 @@ const matchConcepts = (value = "") => {
   PHRASES.forEach((phrase) => {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const pattern = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`);
-    if (pattern.test(haystack)) {
-      found.push({
-        name: displayName(phrase),
-        normalizedName: phrase,
-      });
-    }
+    const match = pattern.exec(haystack);
+    if (!match) return;
+
+    const prefix = haystack.slice(Math.max(0, match.index - 48), match.index);
+    if (/\b(does not|do not|did not|without|never|not cover|doesn't)\b/.test(prefix)) return;
+
+    found.push({
+      name: displayName(phrase),
+      normalizedName: phrase,
+    });
   });
 
   return found;

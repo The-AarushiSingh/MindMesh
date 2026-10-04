@@ -455,6 +455,46 @@ textarea {
   align-items: center;
 }
 
+.graph-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.graph-frame {
+  border: 1px solid var(--line);
+  background: #f7f4ee;
+  overflow: hidden;
+  min-height: 420px;
+  touch-action: none;
+}
+
+.graph-frame svg {
+  width: 100%;
+  height: 420px;
+  display: block;
+}
+
+.graph-edge {
+  stroke: #b7ab9a;
+  stroke-width: 1;
+}
+
+.graph-node {
+  cursor: pointer;
+}
+
+.graph-node text {
+  font-size: 11px;
+  fill: #2b2722;
+}
+
+.graph-detail {
+  border: 1px solid var(--line);
+  padding: 12px;
+}
+
 .password-field input {
   flex: 1;
 }
@@ -497,7 +537,8 @@ textarea {
 
   .grid-two,
   .field-row,
-  .knowledge-grid {
+  .knowledge-grid,
+  .graph-layout {
     grid-template-columns: 1fr;
   }
 

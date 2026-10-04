@@ -43,12 +43,17 @@ const decodeHtmlEntities = (value = "") => {
 const extractTextFromHtml = (html = "") => {
   if (!html) return "";
 
-  const withoutScripts = html.replace(/<script[\s\S]*?<\/script>/gi, " ");
-  const withoutStyles = withoutScripts.replace(/<style[\s\S]*?<\/style>/gi, " ");
-  const withoutTags = withoutStyles.replace(/<[^>]+>/g, " ");
-  const decoded = decodeHtmlEntities(withoutTags);
+  const main = html.match(/<main\b[\s\S]*?<\/main>/i) || html.match(/<article\b[\s\S]*?<\/article>/i);
+  const source = main ? main[0] : html;
+  const withoutNoise = source
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<nav[\s\S]*?<\/nav>/gi, " ")
+    .replace(/<header[\s\S]*?<\/header>/gi, " ")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, " ")
+    .replace(/<[^>]+>/g, " ");
 
-  return normalizeContent(decoded);
+  return normalizeContent(decodeHtmlEntities(withoutNoise));
 };
 
 const extractTitleFromHtml = (html = "") => {

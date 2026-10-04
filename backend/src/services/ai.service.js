@@ -369,12 +369,13 @@ const generateGroundedLLMAnswer = async (question, resources = []) => {
   const model = process.env.AI_MODEL || "gpt-4o-mini";
   const retrievalMode = resources[0]?.mode || "embedding";
   const contextText = resources.slice(0, 5).map((resource) => {
+    const passage = resource.excerpt || (resource.content || "").slice(0, 1800);
     return [
       `resourceId: ${resource._id}`,
       `Title: ${resource.title}`,
       `URL: ${resource.url || ""}`,
       `Summary: ${resource.summary || resource.description || "No summary"}`,
-      `Content: ${(resource.content || "").slice(0, 1800)}`,
+      `Passage: ${passage}`,
     ].join("\n");
   }).join("\n\n");
 
@@ -393,7 +394,7 @@ const generateGroundedLLMAnswer = async (question, resources = []) => {
         messages: [
           {
             role: "system",
-            content: "Answer only from the user's saved resources. Return JSON with answer (string), insufficient (boolean), and sources (array of objects with resourceId). If the context does not support the question, set insufficient to true and explain what is missing. Do not add outside knowledge.",
+            content: "Answer only from the user's saved passages. Return JSON with answer (string), insufficient (boolean), and sources (array of objects with resourceId). If the passages do not support the question, set insufficient to true, explain that the archive does not contain enough, and return an empty sources array. Do not add outside knowledge. Do not include hidden reasoning.",
           },
           {
             role: "user",

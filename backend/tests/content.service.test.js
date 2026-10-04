@@ -30,6 +30,11 @@ test('extractTextFromHtml keeps readable text while removing scripts and styles'
   assert.match(text, /MindMesh/);
   assert.doesNotMatch(text, /do not include/);
   assert.doesNotMatch(text, /color:red/);
+
+  const withChrome = '<nav>Skip to search</nav><main><p>HTTP is a protocol.</p></main>';
+  const cleaned = extractTextFromHtml(withChrome);
+  assert.match(cleaned, /HTTP is a protocol/);
+  assert.doesNotMatch(cleaned, /Skip to search/);
 });
 
 test('normalizeContent strips repeated whitespace and trims output', () => {

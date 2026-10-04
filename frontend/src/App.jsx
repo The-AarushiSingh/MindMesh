@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import './App.css';
 import { apiRequest } from './api';
 import PasswordField from './PasswordField';
+import KnowledgeGraph from './KnowledgeGraph';
 
 const navItems = [
   { id: 'overview', label: 'Overview' },
@@ -653,10 +654,23 @@ function App() {
                       <div className="tag-list">
                         {selectedResource.concepts?.length ? selectedResource.concepts.map((concept) => <span key={concept} className="tag">{concept}</span>) : <p className="empty-note">No concepts yet.</p>}
                       </div>
+                      <p className="hint">
+                        {selectedResource.chunkCount || 0} chunks.
+                        {' '}
+                        {selectedResource.embeddingSource === 'provider'
+                          ? `Embeddings from ${selectedResource.embeddingModel || 'the configured model'}.`
+                          : 'No embeddings stored. Search uses keyword overlap.'}
+                      </p>
                     </div>
                     <div>
-                      <h3>Extracted text</h3>
-                      <p className="extract">{selectedResource.content || 'Content appears after processing.'}</p>
+                      <h3>Passages</h3>
+                      {selectedResource.chunks?.length ? (
+                        <div className="list-stack">
+                          {selectedResource.chunks.map((chunk) => (
+                            <p key={chunk.index} className="extract">{chunk.excerpt}</p>
+                          ))}
+                        </div>
+                      ) : <p className="empty-note">Passages appear after processing.</p>}
                     </div>
                   </div>
                   <div className="row-actions">
@@ -695,8 +709,8 @@ function App() {
                       <button type="button" className="text-button" onClick={() => openResource(resource.id)}><strong>{resource.title}</strong></button>
                       <span className="meta-pill">{modeLabel[resource.mode] || resource.mode}</span>
                     </div>
-                    <p>{resource.summary}</p>
-                    <p className="hint">{resource.why}</p>
+                    <p>{resource.excerpt || resource.summary}</p>
+                    <p className="hint">{resource.why}{typeof resource.score === 'number' ? ` Score ${resource.score}.` : ''}</p>
                   </article>
                 ))}
               </div>
@@ -707,7 +721,8 @@ function App() {
         {activeSection === 'ask' && (
           <div className="content-stack">
             <section className="panel compact-panel">
-              <p className="eyebrow">Ask My Brain</p>
+              <p className="eyebrow">Ask what you know</p>
+              <h2>Ask My Brain</h2>
               <form onSubmit={handleAsk} className="inline-search ask-form">
                 <textarea rows="3" value={askQuestion} onChange={(event) => setAskQuestion(event.target.value)} placeholder="What have I saved about retrieval quality?" />
                 <button type="submit" className="primary-button" disabled={pendingAction === 'ask'}>Ask</button>
@@ -750,7 +765,8 @@ function App() {
             <section className="panel">
               <p className="eyebrow">Knowledge</p>
               <h2>Concepts that co-occur in your archive</h2>
-              <p className="lede">Connections here mean the concepts showed up in the same saved resource. They are not an inferred curriculum.</p>
+              <p className="lede">Lines connect a resource to the concepts and topics extracted from it, and concepts that appeared together. Drag to pan and scroll to zoom.</p>
+              {graph === null ? <p className="empty-note">Loading the knowledge graph.</p> : <KnowledgeGraph graph={graph} onOpenResource={openResource} />}
               <div className="concept-list">
                 {graph?.concepts?.length ? graph.concepts.map((concept) => (
                   <article key={concept.id} className="concept-card">

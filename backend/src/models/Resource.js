@@ -73,6 +73,15 @@ const resourceSchema = new mongoose.Schema(
       enum: ["provider", "unavailable"],
       default: "unavailable",
     },
+    embeddingModel: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    chunkCount: {
+      type: Number,
+      default: 0,
+    },
     contentSource: {
       type: String,
       enum: ["fetched", "note", "limited"],

@@ -1,9 +1,37 @@
 const Resource = require("../models/Resource");
+const Chunk = require("../models/Chunk");
 const { processResourceContent } = require("./content.service");
 const { analyzeResourceContent } = require("./ai.service");
-const { generateEmbedding } = require("./embedding.service");
+const { chunkText } = require("./chunk.service");
+const { generateEmbedding, embeddingConfigured, embeddingModelName } = require("./embedding.service");
 const { rebuildUserKnowledge } = require("./knowledge.service");
 const logger = require("../utils/logger");
+
+const embedChunks = async (userId, resourceId, pieces) => {
+  const model = embeddingModelName();
+  const docs = [];
+  let providerAvailable = embeddingConfigured();
+
+  for (const piece of pieces) {
+    const vector = providerAvailable ? await generateEmbedding(piece.text) : null;
+    if (providerAvailable && !vector) {
+      providerAvailable = false;
+    }
+
+    docs.push({
+      user: userId,
+      resource: resourceId,
+      index: piece.index,
+      text: piece.text,
+      embedding: vector || undefined,
+      embeddingSource: vector ? "provider" : "unavailable",
+      embeddingModel: vector ? model : "",
+      dimensions: vector ? vector.length : 0,
+    });
+  }
+
+  return docs;
+};
 
 const processResourceById = async (resourceId) => {
   const started = Date.now();
@@ -50,12 +78,11 @@ const processResourceById = async (resourceId) => {
     }
 
     const analysis = await analyzeResourceContent(extracted.content);
-    const embedText = [extracted.title || resource.title, analysis.summary, extracted.content]
-      .filter(Boolean)
-      .join("\n")
-      .slice(0, 8000);
-    const embedding = await generateEmbedding(embedText);
-    const embeddingSource = Array.isArray(embedding) && embedding.length ? "provider" : "unavailable";
+    const pieces = chunkText([extracted.title, extracted.content].filter(Boolean).join(". "));
+    const chunkDocs = await embedChunks(resource.user, resourceId, pieces);
+    const embeddedChunks = chunkDocs.filter((chunk) => chunk.embeddingSource === "provider");
+    const embeddingSource = embeddedChunks.length ? "provider" : "unavailable";
+    const embedding = embeddedChunks[0]?.embedding || [];
 
     const fresh = await Resource.findById(resourceId).select("+embedding");
     if (!fresh) {
@@ -78,14 +105,23 @@ const processResourceById = async (resourceId) => {
     fresh.providerModel = analysis.providerModel || "";
     fresh.embedding = embeddingSource === "provider" ? embedding : [];
     fresh.embeddingSource = embeddingSource;
+    fresh.embeddingModel = embeddedChunks[0]?.embeddingModel || "";
+    fresh.chunkCount = chunkDocs.length;
+    fresh.retrievalMode = embeddingSource === "provider" ? "embedding" : "lexical-fallback";
     fresh.contentSource = extracted.contentSource || "fetched";
     fresh.extractionNote = extracted.extractionNote || "";
     fresh.error = "";
     fresh.processedAt = new Date();
 
+    await Chunk.deleteMany({ resource: resourceId, user: fresh.user });
+    if (chunkDocs.length) {
+      await Chunk.insertMany(chunkDocs);
+    }
+
     try {
       await rebuildUserKnowledge(fresh.user, fresh);
     } catch (graphError) {
+      await Chunk.deleteMany({ resource: resourceId, user: fresh.user });
       logger.error("knowledge.rebuild_failed", {
         resourceId: String(resourceId),
         userId: String(fresh.user),
@@ -103,6 +139,7 @@ const processResourceById = async (resourceId) => {
       durationMs: Date.now() - started,
       analysisSource: fresh.analysisSource,
       embeddingSource: fresh.embeddingSource,
+      chunkCount: fresh.chunkCount,
       contentSource: fresh.contentSource,
     });
 

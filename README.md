@@ -52,6 +52,8 @@ Set these in `backend/.env`.
 | `EMBEDDING_API_KEY` | Optional embeddings key. If empty, `AI_API_KEY` is used for embeddings. |
 | `EMBEDDING_BASE_URL` | Embeddings base URL. |
 | `EMBEDDING_MODEL` | Embedding model. Default `text-embedding-3-small`. |
+| `RETRIEVAL_TOP_K` | Maximum retrieved passages. Default `5`. |
+| `RETRIEVAL_MIN_SIMILARITY` | Minimum cosine similarity for semantic hits. Default `0.32`. |
 | `EMAIL_DELIVERY` | `development` returns the verification code in the API response and does not send mail. `provider` sends through Resend. |
 | `RESEND_API_KEY` | Resend API key. Required for real email. |
 | `EMAIL_FROM` | From address Resend is allowed to use, for example `MindMesh <verify@yourdomain.com>`. |
@@ -69,12 +71,12 @@ Local accounts created before verification existed do not have `emailVerified: f
 - Resources, concepts, topics, search, Ask My Brain, and gaps are scoped to the signed-in user.
 - Saving a URL or note returns immediately. Processing runs on the in-process queue.
 - Processing states are `saved`, `processing`, `processed`, and `failed`. Failures keep an error message and can be retried.
-- Successful processing stores a summary, topics, concepts, and, when an embedding key is configured, a vector.
+- Successful processing stores a summary, topics, concepts, and deterministic text chunks. When an embedding key is configured, each chunk gets a vector.
 - Concept and topic names are normalized per user, so repeated mentions converge on one entity.
 - Observed graph edges mean two concepts appeared in the same saved resource.
 - Gap recommendations use a documented coverage score plus a curated map of neighboring concepts. The formula is in `ARCHITECTURE.md`.
-- Ask My Brain retrieves only that user's processed resources. If an AI key is set, the model must answer from that context, and returned sources are checked against the retrieved ids. Without a key, the answer quotes saved summaries and is labeled `heuristic`.
-- Search without an embedding provider is keyword overlap. It is not described as semantic search.
+- Ask My Brain retrieves only that user's chunks. If an AI key is set, the model must answer from those passages, and returned sources are checked against the retrieved ids. Without a key, the answer quotes saved summaries and is labeled `heuristic`.
+- Search with stored chunk embeddings is cosine similarity and is labeled semantic similarity. Search without embeddings is keyword overlap. It is not described as semantic search.
 
 ## What uses fallback logic
 
@@ -88,7 +90,7 @@ Local accounts created before verification existed do not have `emailVerified: f
 ## What is not built
 
 - Review reminders and spaced repetition.
-- A visual graph canvas. Knowledge is explored as concepts, connections, and linked resources.
+- A separate vector database. Similarity is computed over chunk embeddings stored in MongoDB.
 - A distributed queue, vector database, graph database, or microservice split.
 - Notifications.
 
@@ -96,8 +98,11 @@ Local accounts created before verification existed do not have `emailVerified: f
 
 ```bash
 cd backend && npm test
-cd frontend && npm run build
+cd frontend && npm test
+cd backend && node scripts/live-loop.js
 ```
+
+`scripts/live-loop.js` registers a throwaway user against the running API and local MongoDB, saves notes plus three public URLs, and prints processing, retrieval, and graph counts. It does not drop the database.
 
 Backend tests include unit coverage for analysis validation, retrieval fallback, and gap scoring, plus an integration test against a local `mindmesh_test` database. That integration test requires MongoDB on `127.0.0.1:27017`.
 

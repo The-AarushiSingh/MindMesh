@@ -1,5 +1,4 @@
-const Resource = require("../models/Resource");
-const { searchResourcesByMeaning, embeddingConfigured } = require("../services/embedding.service");
+const { searchUserKnowledge } = require("../services/embedding.service");
 const logger = require("../utils/logger");
 
 const searchResources = async (req, res) => {
@@ -15,32 +14,28 @@ const searchResources = async (req, res) => {
     }
 
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 20);
-    const selection = embeddingConfigured() ? "+embedding" : "-embedding";
-    const resources = await Resource.find({ user: req.user._id, status: "processed" })
-      .select(selection)
-      .lean();
-
-    const rankedResources = await searchResourcesByMeaning(req.user._id, query, resources, limit);
-    const mode = rankedResources[0]?.mode || (embeddingConfigured() ? "embedding" : "lexical-fallback");
+    const retrieval = await searchUserKnowledge(req.user._id, query, { limit, perResource: 1 });
 
     return res.status(200).json({
       query,
-      total: rankedResources.length,
-      mode,
-      results: rankedResources.map((resource) => ({
+      total: retrieval.hits.length,
+      mode: retrieval.mode,
+      results: retrieval.hits.map((resource) => ({
         id: resource._id,
         title: resource.title || "Untitled resource",
         url: resource.url || "",
         summary: resource.summary || resource.description || "",
+        excerpt: resource.excerpt || "",
         type: resource.type,
         status: resource.status,
         score: Math.round((resource.similarity || 0) * 1000) / 1000,
         topics: resource.topics || [],
         concepts: resource.concepts || [],
         mode: resource.mode,
+        chunkIndex: resource.chunkIndex,
         matchedTerms: resource.matchedTerms || [],
         why: resource.mode === "embedding"
-          ? "Ranked by semantic similarity to your saved resource."
+          ? `Semantic similarity ${Math.round((resource.similarity || 0) * 1000) / 1000} on a saved passage.`
           : resource.matchedTerms?.length
             ? `Keyword overlap on ${resource.matchedTerms.join(", ")}.`
             : "Keyword overlap with the saved resource.",

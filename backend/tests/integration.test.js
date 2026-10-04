@@ -121,6 +121,9 @@ test("product flow and user isolation against MongoDB", async () => {
     assert.equal(detail.data.resource.embeddingSource, "unavailable");
     assert.ok(detail.data.resource.concepts.includes("Hybrid search"));
     assert.ok(detail.data.resource.concepts.includes("RAG"));
+    assert.ok(detail.data.resource.chunkCount >= 1);
+    assert.ok(detail.data.resource.chunks.length >= 1);
+    assert.equal(detail.data.resource.chunks[0].embeddingSource, "unavailable");
 
     const hidden = await request(baseUrl, `/api/resources/${created.data.resource._id}`, { token: tokenB });
     assert.equal(hidden.status, 404);
